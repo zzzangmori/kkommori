@@ -1,52 +1,16 @@
 <!DOCTYPE html>
 <html lang="ko">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Lucky Draw</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%23180a28'/%3E%3Crect x='7' y='7' width='86' height='86' rx='18' fill='none' stroke='%23ff4ad8' stroke-width='4'/%3E%3Cg fill='%23ff6adf'%3E%3Cellipse cx='28' cy='38' rx='7' ry='9'/%3E%3Cellipse cx='42' cy='28' rx='7' ry='9'/%3E%3Cellipse cx='58' cy='28' rx='7' ry='9'/%3E%3Cellipse cx='72' cy='40' rx='7' ry='9'/%3E%3Cellipse cx='50' cy='58' rx='16' ry='13'/%3E%3C/g%3E%3C/svg%3E" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Jua&family=Outfit:wght@500;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css" />
-</head>
-<body>
-  <div class="letterbox">
-    <div class="monitor" id="monitor">
-      <i class="monitor__lamp monitor__lamp--left" aria-hidden="true"></i>
-      <i class="monitor__lamp monitor__lamp--right" aria-hidden="true"></i>
-      <div class="monitor__bar">
-        <i class="paw" aria-hidden="true"></i>
-        <p class="monitor__title">LUCKY DRAW</p>
-        <i class="paw" aria-hidden="true"></i>
-      </div>
-      <div class="stage" id="stage">
-        <video id="pv" playsinline preload="auto" disablepictureinpicture disableremoteplayback tabindex="-1"></video>
-        <div class="wipe" id="wipe"></div>
-        <div class="flash" id="flash"></div>
-        <div class="rays" id="rays" aria-hidden="true"><div class="rays__ring"></div></div>
-        <div class="burst" id="burst" aria-hidden="true"></div>
-        <div class="card-slot" id="cardSlot"></div>
-
-        <section class="idle" id="idle">
-          <h1 class="sr-only">Lucky Draw</h1>
-          <button type="button" id="drawBtn" class="draw-btn" disabled>
-            <i class="paw" aria-hidden="true"></i>
-            <span>뽑기</span>
-          </button>
-          <p class="hint" id="status" hidden></p>
-        </section>
-
-        <button type="button" id="againBtn" class="draw-btn draw-btn--again" hidden>
-          <i class="paw" aria-hidden="true"></i>
-          <span>한번 더 뽑기</span>
-        </button>
-        <p class="sr-only" id="live" aria-live="polite"></p>
-      </div>
-      <div class="monitor__slot" aria-hidden="true"></div>
-      <p class="monitor__caption">GOOD LUCK</p>
-    </div>
-  </div>
-  <script src="js/app.js"></script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Lucky Draw</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%23180a28'/%3E%3Crect x='7' y='7' width='86' height='86' rx='18' fill='none' stroke='%23ff4ad8' stroke-width='4'/%3E%3Cg fill='%23ff6adf'%3E%3Cellipse cx='28' cy='38' rx='7' ry='9'/%3E%3Cellipse cx='42' cy='28' rx='7' ry='9'/%3E%3Cellipse cx='58' cy='28' rx='7' ry='9'/%3E%3Cellipse cx='72' cy='40' rx='7' ry='9'/%3E%3Cellipse cx='50' cy='58' rx='16' ry='13'/%3E%3C/g%3E%3C/svg%3E" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Jua&family=Outfit:wght@500;700;800&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
 </html>
