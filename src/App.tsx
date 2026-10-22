@@ -9,15 +9,14 @@ import { useFitFrame } from "./hooks/useFitFrame";
 export function App() {
   const monitorRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const pictureRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const [adminOpen, setAdminOpen] = useState(false);
   const catalog = useCatalog();
-  const draw = useLuckyDraw(videoRef, pictureRef, catalog.cards);
+  const draw = useLuckyDraw(videoRef, canvasRef, catalog.cards);
   useFitFrame(monitorRef);
 
   const hasPrize = catalog.cards.some((card) => !card.miss);
   const hint = hasPrize ? draw.error : "상품이 없습니다";
-  const pictureClass = ["pv-wrap", draw.fx.playing && "is-playing"].filter(Boolean).join(" ");
   const showAdminButton = draw.phase !== "playing" && draw.phase !== "fading";
 
   return (
@@ -44,18 +43,17 @@ export function App() {
           ) : null}
         </div>
         <div className="stage">
-          <div className={pictureClass} ref={pictureRef}>
-            <video
-              ref={videoRef}
-              className="pv"
-              playsInline
-              preload="auto"
-              disablePictureInPicture
-              tabIndex={-1}
-            />
+          <video
+            ref={videoRef}
+            className="pv-audio"
+            playsInline
+            preload="auto"
+            disablePictureInPicture
+            tabIndex={-1}
+          />
+          <div className="pv-wrap">
+            <canvas ref={canvasRef} className="pv" />
           </div>
-          <div className={draw.fx.wipe ? "wipe is-on" : "wipe"} />
-          <div className={draw.fx.flash ? "flash is-on" : "flash"} />
           <div className="card-slot">
             {draw.phase === "shown" && draw.card ? <GiftCard card={draw.card} /> : null}
           </div>
