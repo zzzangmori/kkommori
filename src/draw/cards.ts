@@ -27,6 +27,12 @@ export function formatRate(rate: number) {
   return `${text}%`;
 }
 
+export function announceCard(card: Card) {
+  if (card.miss) return card.name;
+  if (card.desc) return `당첨 ${card.name}. 확률 ${formatRate(card.rate)}. ${card.desc}`;
+  return `당첨 ${card.name}. 확률 ${formatRate(card.rate)}`;
+}
+
 export function readProducts(data: unknown): Card[] {
   const source = data && typeof data === "object" ? (data as CardsFile) : {};
   const cards: Card[] = [];

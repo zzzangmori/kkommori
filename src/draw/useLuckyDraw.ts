@@ -1,8 +1,13 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
-import { formatRate, pickCard, type Card } from "./cards";
-import { DRAW_SECONDS, FADE_SECONDS, VIDEO_END_SECONDS, asset } from "./constants";
+import { pickCard, type Card } from "./cards";
+import { DEAL_END_MS, DRAW_SECONDS, FADE_SECONDS, FLIP_LEAD_MS, MAX_DRAWS, VIDEO_END_SECONDS, asset } from "./constants";
 
-export type Phase = "boot" | "idle" | "playing" | "fading" | "shown";
+export type Phase = "boot" | "idle" | "playing" | "fading" | "dealing" | "shown";
+
+export type DrawResult = {
+  id: string;
+  card: Card;
+};
 
 function sizeCanvas(canvas: HTMLCanvasElement) {
   const cssWidth = canvas.clientWidth;
@@ -44,16 +49,19 @@ export function useLuckyDraw(
   videoRef: RefObject<HTMLVideoElement | null>,
   canvasRef: RefObject<HTMLCanvasElement | null>,
   cards: Card[],
+  onDrawn?: (cards: Card[]) => void,
 ) {
   const [phase, setPhaseState] = useState<Phase>("boot");
-  const [card, setCard] = useState<Card | null>(null);
+  const [results, setResults] = useState<DrawResult[]>([]);
+  const [revealed, setRevealed] = useState(0);
+  const [total, setTotal] = useState(0);
   const [error, setError] = useState("");
   const [ready, setReady] = useState(false);
   const [hideCursor, setHideCursor] = useState(false);
 
   const phaseRef = useRef<Phase>("boot");
   const cardsRef = useRef<Card[]>([]);
-  const pendingRef = useRef<Card | null>(null);
+  const pendingRef = useRef<DrawResult[]>([]);
   const timersRef = useRef<number[]>([]);
   const audioFadeRef = useRef(0);
   const cursorTimerRef = useRef(0);
@@ -63,7 +71,9 @@ export function useLuckyDraw(
   const onTimeRef = useRef<(() => void) | null>(null);
   const paintRef = useRef(0);
   const holdRef = useRef(0);
+  const onDrawnRef = useRef(onDrawn);
   cardsRef.current = cards;
+  onDrawnRef.current = onDrawn;
 
   function stopPaint() {
     if (paintRef.current) cancelAnimationFrame(paintRef.current);
@@ -115,6 +125,11 @@ export function useLuckyDraw(
   function setPhase(next: Phase) {
     phaseRef.current = next;
     setPhaseState(next);
+    if (next === "dealing") {
+      window.clearTimeout(cursorTimerRef.current);
+      setHideCursor(true);
+      return;
+    }
     if (next === "playing" || next === "fading") {
       armCursorHide();
       return;
@@ -126,9 +141,9 @@ export function useLuckyDraw(
   function armCursorHide() {
     setHideCursor(false);
     window.clearTimeout(cursorTimerRef.current);
-    if (phaseRef.current !== "playing" && phaseRef.current !== "fading") return;
+    if (phaseRef.current !== "playing" && phaseRef.current !== "fading" && phaseRef.current !== "dealing") return;
     cursorTimerRef.current = window.setTimeout(() => {
-      if (phaseRef.current === "playing" || phaseRef.current === "fading") {
+      if (phaseRef.current === "playing" || phaseRef.current === "fading" || phaseRef.current === "dealing") {
         setHideCursor(true);
       }
     }, 1200);
@@ -183,15 +198,6 @@ export function useLuckyDraw(
     }
   }
 
-  function reveal(drawId: number) {
-    if (drawId !== drawIdRef.current) return;
-    if (phaseRef.current !== "fading") return;
-    const next = pendingRef.current;
-    if (!next) return;
-    setCard(next);
-    setPhase("shown");
-  }
-
   function releasePlayhead() {
     if (!videoEndedRef.current || !fadeStartedRef.current) return;
     clearPlayhead();
@@ -200,7 +206,7 @@ export function useLuckyDraw(
   function endVideo(drawId: number) {
     if (drawId !== drawIdRef.current || videoEndedRef.current) return;
     const phase = phaseRef.current;
-    if (phase !== "playing" && phase !== "fading" && phase !== "shown") return;
+    if (phase !== "playing" && phase !== "fading" && phase !== "dealing" && phase !== "shown") return;
     videoEndedRef.current = true;
     stopPaint();
     const video = videoRef.current;
@@ -214,9 +220,34 @@ export function useLuckyDraw(
     if (phaseRef.current !== "playing") return;
     if (fadeStartedRef.current) return;
     fadeStartedRef.current = true;
-    setPhase("fading");
-    later(() => reveal(drawId), FADE_SECONDS * 1000 * 0.4);
     releasePlayhead();
+
+    const pending = pendingRef.current;
+    const count = pending.length;
+    if (!count) return;
+    setResults(pending.slice());
+    setRevealed(0);
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const reveal = () => {
+      if (drawId !== drawIdRef.current) return;
+      setRevealed(count);
+      onDrawnRef.current?.(pending.map((item) => item.card));
+    };
+    if (reduce) {
+      reveal();
+      setPhase("shown");
+      return;
+    }
+
+    setPhase("dealing");
+    later(() => {
+      if (phaseRef.current !== "dealing") return;
+      reveal();
+      later(() => {
+        if (drawId !== drawIdRef.current || phaseRef.current !== "dealing") return;
+        setPhase("shown");
+      }, DEAL_END_MS);
+    }, FLIP_LEAD_MS);
   }
 
   function armCues(drawId: number) {
@@ -254,18 +285,26 @@ export function useLuckyDraw(
     }
   }
 
-  async function startDraw() {
+  async function startDraw(count: number) {
     const phase = phaseRef.current;
-    if (phase === "boot" || phase === "playing" || phase === "fading") return;
+    if (phase === "boot" || phase === "playing" || phase === "fading" || phase === "dealing") return;
     if (!cardsRef.current.length) return;
+    const draws = Math.floor(count);
+    if (!Number.isFinite(draws)) return;
+    const totalDraws = Math.min(MAX_DRAWS, Math.max(1, draws));
 
     const drawId = ++drawIdRef.current;
     fadeStartedRef.current = false;
     videoEndedRef.current = false;
     clearTimers();
     clearPlayhead();
-    pendingRef.current = pickCard(cardsRef.current);
-    setCard(null);
+    pendingRef.current = Array.from({ length: totalDraws }, () => ({
+      id: crypto.randomUUID(),
+      card: pickCard(cardsRef.current),
+    }));
+    setResults([]);
+    setRevealed(0);
+    setTotal(totalDraws);
     setPhase("playing");
     stopAudioFade();
 
@@ -288,7 +327,7 @@ export function useLuckyDraw(
 
   function abort() {
     const current = phaseRef.current;
-    if (current !== "playing" && current !== "fading" && current !== "shown") return;
+    if (current !== "playing" && current !== "fading" && current !== "dealing" && current !== "shown") return;
     drawIdRef.current += 1;
     fadeStartedRef.current = false;
     videoEndedRef.current = false;
@@ -301,8 +340,10 @@ export function useLuckyDraw(
       video.volume = 1;
       holdFrame(0);
     }
-    setCard(null);
-    pendingRef.current = null;
+    pendingRef.current = [];
+    setResults([]);
+    setRevealed(0);
+    setTotal(0);
     setPhase("idle");
   }
 
@@ -311,16 +352,19 @@ export function useLuckyDraw(
       ? cards.find((item) => item.miss)
       : cards.find((item) => !item.miss && item.rate === rate);
     if (!sample) return;
-    pendingRef.current = sample;
-    phaseRef.current = "fading";
-    reveal(drawIdRef.current);
+    const item = { id: "preview", card: sample };
+    pendingRef.current = [item];
+    setResults([item]);
+    setRevealed(1);
+    setTotal(1);
+    setPhase("shown");
   }
 
   useEffect(() => {
     const video = videoRef.current;
 
     const onLoaded = () => {
-      if (phaseRef.current === "playing" || phaseRef.current === "fading") return;
+      if (phaseRef.current === "playing" || phaseRef.current === "fading" || phaseRef.current === "dealing") return;
       setError("");
       if (!video) return;
       holdFrame(phaseRef.current === "shown" ? frameAt(video, VIDEO_END_SECONDS) : 0);
@@ -373,20 +417,18 @@ export function useLuckyDraw(
   }, [cards]);
 
   useEffect(() => {
-    if (phase !== "shown" || !card) {
+    if (phase !== "shown" || results.length === 0) {
       document.title = "Lucky Draw";
       return;
     }
-    document.title = card.miss ? card.name : `당첨 · ${card.name}`;
-  }, [phase, card]);
+    if (results.length === 1) {
+      const card = results[0]?.card;
+      document.title = !card || card.miss ? (card?.name ?? "Lucky Draw") : `당첨 · ${card.name}`;
+      return;
+    }
+    const wins = results.filter((item) => !item.card.miss).length;
+    document.title = wins > 0 ? `당첨 ${wins}장` : "꽝";
+  }, [phase, results]);
 
-  const live = phase === "shown" && card
-    ? card.miss
-      ? card.name
-      : card.desc
-        ? `당첨 ${card.name}. 확률 ${formatRate(card.rate)}. ${card.desc}`
-        : `당첨 ${card.name}. 확률 ${formatRate(card.rate)}`
-    : "";
-
-  return { phase, card, error, ready, hideCursor, live, startDraw };
+  return { phase, results, revealed, total, error, ready, hideCursor, startDraw };
 }
