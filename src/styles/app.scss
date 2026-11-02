@@ -262,6 +262,7 @@ button {
   &[data-count="8"] { --cols: 4; --card-w: 188px; --card-h: 248px; }
   &[data-count="9"],
   &[data-count="10"] { --cols: 5; --card-w: 176px; --card-h: 232px; }
+  &[data-count="11"] { --cols: 6; --card-w: 164px; --card-h: 214px; }
 }
 
 .letterbox[data-phase="dealing"] .card-slot::before,
@@ -476,7 +477,8 @@ button {
 .card-slot[data-count="7"] .gift__desc,
 .card-slot[data-count="8"] .gift__desc,
 .card-slot[data-count="9"] .gift__desc,
-.card-slot[data-count="10"] .gift__desc {
+.card-slot[data-count="10"] .gift__desc,
+.card-slot[data-count="11"] .gift__desc {
   -webkit-line-clamp: 2;
 }
 
